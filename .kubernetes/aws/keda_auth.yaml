@@ -1,0 +1,10 @@
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: &component-name keda-auth-go-worker-order
+  namespace: test-a
+  labels:
+    app: *component-name
+spec:
+  podIdentity:
+    provider: aws-eks

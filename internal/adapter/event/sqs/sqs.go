@@ -17,9 +17,14 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/contrib/propagators/aws/xray"
 )
 
 var childLogger = log.With().Str("event", "sqs").Logger()
+var tracer 			trace.Tracer
 
 type NotifierSQS struct{
 	sqsClient 	*sqs.Client
@@ -56,6 +61,15 @@ func (s *NotifierSQS) Consumer(	ctx context.Context,
 								appServer core.WorkerAppServer ) {
 	childLogger.Debug().Msg("Consumer")
 
+	// ---------------------- OTEL ---------------
+	childLogger.Info().Str("OTEL_EXPORTER_OTLP_ENDPOINT :", appServer.ConfigOTEL.OtelExportEndpoint).Msg("")
+	
+	tp := lib.NewTracerProvider(ctx, appServer.ConfigOTEL, appServer.InfoPod)
+	otel.SetTextMapPropagator(xray.Propagator{})
+	otel.SetTracerProvider(tp)
+	tracer = tp.Tracer(appServer.InfoPod.PodName)
+	// ---------------------- OTEL ---------------
+
 	defer func() { 
 		childLogger.Debug().Msg("Closing consumer waiting please !!!")
 		defer wg.Done()
@@ -75,6 +89,7 @@ func (s *NotifierSQS) Consumer(	ctx context.Context,
 			childLogger.Debug().Msg("No messages after timeout, stopping!!!")
             return
 		default:
+		
 			receiveMsgInput := &sqs.ReceiveMessageInput{
 				QueueUrl:            aws.String(s.queueConfig.QueueUrl),
 				MaxNumberOfMessages: 1,      // The number of messages to receive
@@ -82,6 +97,7 @@ func (s *NotifierSQS) Consumer(	ctx context.Context,
 				VisibilityTimeout:   30,     // Visibility timeout for processing the message
 			}
 
+			ctx, span := tracer.Start(ctx, "go-worker-order:receiveMessage")
 			result, err := s.sqsClient.ReceiveMessage(ctx, receiveMsgInput)
 			if err != nil {
 				childLogger.Error().Err(err).Msg("error sqsClient.ReceiveMessageInput")
@@ -91,7 +107,7 @@ func (s *NotifierSQS) Consumer(	ctx context.Context,
                 childLogger.Debug().Msg("Consumer No messages received")
                 continue
             }
-
+			
 			for _, message := range result.Messages {
 				childLogger.Debug().Interface("message.Body:",message.Body).Msg("")
 
@@ -120,6 +136,9 @@ func (s *NotifierSQS) Consumer(	ctx context.Context,
 
 				childLogger.Debug().Msg("DELETE MESSAGE COMPLETE !!!!")
 			}
+
+			span.End()
+
 		}
 	}
 }

@@ -14,13 +14,11 @@ spec:
   minReplicaCount: 0 # Optional. Default: 0
   maxReplicaCount: 2 # Optional. Default: 6
   triggers:
-  - type: kafka
+  - type: aws-sqs-queue
     metadata:
-      bootstrapServers: "b-1.mskarchtest03.p70t1p.c6.kafka.us-east-2.amazonaws.com:9092,b-2.mskarchtest03.p70t1p.c6.kafka.us-east-2.amazonaws.com:9092,b-3.mskarchtest03.p70t1p.c6.kafka.us-east-2.amazonaws.com:9092"
-      consumerGroup: "GROUP-GO-WORKER-DEBIT-01"   # Make sure that this consumer group name is the same one as the one that is consuming topics
-      topic: topic.debit.01
-      # Optional
-      lagThreshold: "5"
-      offsetResetPolicy: latest
+      queueURL: https://sqs.us-east-2.amazonaws.com/908671954593/order.fifo
+      queueLength: "5"
+      awsRegion: us-east-2
+      identityOwner: operator
     authenticationRef:
-      name: keda-auth-go-worker-debit
+      name: keda-auth-go-worker-order
