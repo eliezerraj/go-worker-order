@@ -28,7 +28,6 @@ func NewWorkerService(	workerRepo		*storage.WorkerRepository,
 
 func (s WorkerService) OrderUpdate(ctx context.Context, order core.Order) (error){
 	childLogger.Debug().Msg("OrderUpdate")
-	childLogger.Debug().Interface("===>order: ",order).Msg("")
 	
 	span := lib.Span(ctx, "service.OrderUpdate")
 

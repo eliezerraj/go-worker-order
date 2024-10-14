@@ -57,7 +57,8 @@ func (w WorkerRepository) ReleaseTx(connection *pgxpool.Conn) {
 
 func (w WorkerRepository) Update(ctx context.Context, tx pgx.Tx, order *core.Order) (int64, error){
 	childLogger.Debug().Msg("Update")
-
+	childLogger.Debug().Interface("===>order: ",order).Msg("")
+	
 	span := lib.Span(ctx, "storage.Update")	
     defer span.End()
 
