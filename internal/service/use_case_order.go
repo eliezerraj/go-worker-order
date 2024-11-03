@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"github.com/rs/zerolog/log"
+	"github.com/go-worker-order/internal/repository/dynamo"
 	"github.com/go-worker-order/internal/repository/storage"
 	"github.com/go-worker-order/internal/core"
 	"github.com/go-worker-order/internal/erro"
@@ -14,14 +15,17 @@ var childLogger = log.With().Str("service", "service").Logger()
 type WorkerService struct {
 	workerRepo		*storage.WorkerRepository
 	appServer		*core.WorkerAppServer
+	workerDynamo	*dynamo.DynamoRepository
 }
 
 func NewWorkerService(	workerRepo		*storage.WorkerRepository,
-						appServer		*core.WorkerAppServer) *WorkerService{
+						appServer		*core.WorkerAppServer,
+						workerDynamo	*dynamo.DynamoRepository) *WorkerService{
 	childLogger.Debug().Msg("NewWorkerService")
 
 	return &WorkerService{
 		workerRepo:	workerRepo,
+		workerDynamo: 	workerDynamo,
 		appServer:	appServer,
 	}
 }
@@ -53,6 +57,11 @@ func (s WorkerService) OrderUpdate(ctx context.Context, order core.Order) (error
 	}
 	if res_update == 0 {
 		err = erro.ErrUpdate
+		return err
+	}
+
+	_, err = s.workerDynamo.Add(ctx, order)
+	if err != nil {
 		return err
 	}
 

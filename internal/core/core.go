@@ -15,11 +15,17 @@ type DatabaseRDS struct {
 	Postgres_Driver		string `json:"postgres_driver"`
 }
 
+type DatabaseDynamo struct {
+	OrderTableName		string	`json:"order_table"`
+	AwsRegion			string	`json:"aws_region"`
+}
+
 type WorkerAppServer struct {
 	InfoPod 		*InfoPod 		`json:"info_pod"`
 	Database		*DatabaseRDS	`json:"database"`
 	ConfigOTEL		*ConfigOTEL		`json:"otel_config"`
 	QueueConfig		*QueueConfig	`json:"queue_config"`
+	DynamoConfig	*DatabaseDynamo	`json:"dynamo_config"`
 }
 
 type InfoPod struct {
@@ -46,6 +52,8 @@ type ConfigOTEL struct {
 
 type Order struct {
 	ID				int			`json:"id,omitempty"`
+	PK				string		`dynamodbav:"pk"`
+	SK				string		`dynamodbav:"sk"`
 	OrderID			string  	`json:"order_id,omitempty"`
 	PersonID		string  	`json:"person_id,omitempty"`
 	ProductID		[]string  	`json:"products_id,omitempty"`
@@ -55,7 +63,6 @@ type Order struct {
 	CreateAt		time.Time 	`json:"create_at,omitempty"`
 	UpdateAt		*time.Time 	`json:"update_at,omitempty"`
 	TenantID		string  	`json:"tenant_id,omitempty"`
-	UserLastUpdate	*string  	`json:"user_last_update,omitempty"`
 }
 
 type Event struct {

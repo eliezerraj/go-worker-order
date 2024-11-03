@@ -8,6 +8,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
+	"github.com/go-worker-order/internal/repository/dynamo"
 	"github.com/go-worker-order/internal/adapter/event"
 	"github.com/go-worker-order/internal/adapter/event/sqs"
 	"github.com/go-worker-order/internal/util"
@@ -31,10 +32,12 @@ func init() {
 	database := util.GetDatabaseEnv()
 	configOTEL := util.GetOtelEnv()
 	queueConfig := util.GetQueueEnv()
+	dynamo := util.GetDynamoEnv()
 
 	appServer.InfoPod = &infoPod
 	appServer.Database = &database
 	appServer.ConfigOTEL = &configOTEL
+	appServer.DynamoConfig = &dynamo
 	appServer.QueueConfig = &queueConfig
 }
 
@@ -67,8 +70,14 @@ func main() {
 		break
 	}
 
+	// Create a dynamo repository
+	dynamoRepository, err := dynamo.NewDynamoRepository(ctx, *appServer.DynamoConfig)
+	if err != nil {
+		log.Error().Err(err).Msg("erro connect to dynamo")
+	}
+
 	repoDB := storage.NewWorkerRepository(databasePG)
-	workerService := service.NewWorkerService(&repoDB, &appServer)
+	workerService := service.NewWorkerService(&repoDB, &appServer, dynamoRepository)
 	consumerWorker, err = sqs.NewNotifierSQS(ctx, appServer.QueueConfig, workerService)
 	if err != nil {
 		log.Error().Err(err).Msg("erro connect to queue")
