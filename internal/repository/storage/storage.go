@@ -81,3 +81,44 @@ func (w WorkerRepository) Update(ctx context.Context, tx pgx.Tx, order *core.Ord
 
 	return int64(row.RowsAffected()) , nil
 }
+
+func (w WorkerRepository) Add(ctx context.Context, tx pgx.Tx, order *core.Order) (*core.Order, error){
+	childLogger.Debug().Msg("Add")
+	childLogger.Debug().Interface("Add : ", order).Msg("")
+
+	span := lib.Span(ctx, "storage.Add")	
+	defer span.End()
+
+	conn, err := w.databasePG.Acquire(ctx)
+	if err != nil {
+		childLogger.Error().Err(err).Msg("error acquire")
+		return nil, errors.New(err.Error())
+	}
+	defer w.databasePG.Release(conn)
+
+	query := `INSERT INTO public.order (order_id, 
+										person_id, 
+										status, 
+										currency, 
+										amount, 
+										create_at, 
+										tenant_id) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id`
+
+	order.CreateAt = time.Now()
+	row := tx.QueryRow(ctx, query, order.OrderID, 
+									order.PersonID,
+									order.Status,
+									order.Currency,
+									order.Amount,
+									order.CreateAt,
+									order.TenantID)
+
+	var id int
+	if err := row.Scan(&id); err != nil {
+		childLogger.Error().Err(err).Msg("error queryRow insert")
+		return nil, errors.New(err.Error())
+	}
+
+	order.ID = id
+	return order , nil
+}

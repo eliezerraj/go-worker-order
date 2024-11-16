@@ -114,16 +114,22 @@ func (s *NotifierSQS) Consumer(	ctx context.Context,
 				json.Unmarshal([]byte(*message.Body), &event)
 
 				childLogger.Debug().Msg("++++++++++++++++++++++++++++++++++++++++++")
+				childLogger.Debug().Interface(">>>>>> event:    ",event).Msg("<<<<<<<")
+				childLogger.Debug().Msg("++++++++++++++++++++++++++++++++++++++++++")
 				childLogger.Debug().Interface(">>>>>> OrderID:    ",event.EventData.Order.OrderID).Msg("<<<<<<<")
 				childLogger.Debug().Msg("++++++++++++++++++++++++++++++++++++++++++")
 
-				err = s.workerService.OrderUpdate(ctx, *event.EventData.Order)
+				if (event.EventType == "CQRS"){
+					err = s.workerService.OrderAdd(ctx, *event.EventData.Order)
+				} else {
+					err = s.workerService.OrderUpdate(ctx, *event.EventData.Order)
+				}
 				if err != nil {
 					childLogger.Error().Err(err).Msg("Erro no Consumer.OrderUpdate")
 					childLogger.Debug().Msg("ROLLBACK !!!")
 					continue
 				}
-				
+
 				deleteMsgInput := &sqs.DeleteMessageInput{
                     QueueUrl:      aws.String(s.queueConfig.QueueUrl),
                     ReceiptHandle: message.ReceiptHandle,

@@ -67,3 +67,40 @@ func (s WorkerService) OrderUpdate(ctx context.Context, order core.Order) (error
 
 	return nil
 }
+
+func (s WorkerService) OrderAdd(ctx context.Context, order core.Order) (error){
+	childLogger.Debug().Msg("OrderAdd")
+	
+	span := lib.Span(ctx, "service.OrderAdd")
+
+	tx, conn, err := s.workerRepo.StartTx(ctx)
+	if err != nil {
+		return err
+	}
+	
+	defer func() {
+		if err != nil {
+			tx.Rollback(ctx)
+		} else {
+			tx.Commit(ctx)
+		}
+		s.workerRepo.ReleaseTx(conn)
+		span.End()
+	}()
+
+	order.Status = "DONE"
+	res, err := s.workerRepo.Add(ctx, tx, &order)
+	if err != nil {
+		return err
+	}
+	
+	order.ID = res.ID
+	order.CreateAt = res.CreateAt
+
+	_, err = s.workerDynamo.Add(ctx, order)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
